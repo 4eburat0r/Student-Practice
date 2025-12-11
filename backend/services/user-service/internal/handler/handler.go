@@ -1,0 +1,207 @@
+package handler
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"backend/services/user-service/internal/domain/entity"
+	"backend/services/user-service/internal/service"
+)
+
+type Handler struct {
+	userSvc     *service.UserService
+	studentSvc  *service.StudentService
+	employerSvc *service.EmployerService
+	authURL     string
+	httpClient  *http.Client
+}
+
+func NewHandler(us *service.UserService, ss *service.StudentService, es *service.EmployerService, authURL string) *Handler {
+	return &Handler{
+		userSvc:     us,
+		studentSvc:  ss,
+		employerSvc: es,
+		authURL:     authURL,
+		httpClient:  &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	// user
+	rg.POST("", h.CreateUser)
+	rg.GET("/:id", h.GetUserByID)
+
+	// student
+	sg := rg.Group("/students")
+	sg.Use(h.authMiddleware())
+	{
+		sg.GET("/me", h.GetStudentMe)
+		sg.PUT("/me", h.UpdateStudentMe)
+		sg.DELETE("/me", h.DeleteStudentMe)
+	}
+
+	// employer
+	eg := rg.Group("/employers")
+	eg.Use(h.authMiddleware())
+	{
+		eg.GET("/me", h.GetEmployerMe)
+		eg.PUT("/me", h.UpdateEmployerMe)
+		eg.DELETE("/me", h.DeleteEmployerMe)
+	}
+}
+
+// CreateUser request
+type createUserReq struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+	Role     string `json:"role" binding:"required,oneof=student employer admin"`
+}
+
+func (h *Handler) CreateUser(c *gin.Context) {
+	var req createUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	id, err := h.userSvc.CreateUser(c.Request.Context(), req.Email, req.Password, req.Role)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"user_id": id})
+}
+
+func (h *Handler) GetUserByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := strconv.ParseInt(idStr, 10, 64)
+	u, err := h.userSvc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	c.JSON(http.StatusOK, u)
+}
+
+// introspect response expected
+type introspectResp struct {
+	UserID int64  `json:"user_id"`
+	Role   string `json:"role"`
+	Active bool   `json:"active"`
+}
+
+func (h *Handler) authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		auth := c.GetHeader("Authorization")
+		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+			return
+		}
+		token := strings.TrimPrefix(auth, "Bearer ")
+
+		body, _ := json.Marshal(map[string]string{"token": token})
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
+		req, _ := http.NewRequestWithContext(ctx, "POST", h.authURL, strings.NewReader(string(body)))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := h.httpClient.Do(req)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "auth service error"})
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			b, _ := io.ReadAll(resp.Body)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token", "auth_resp": string(b)})
+			return
+		}
+		var ir introspectResp
+		if err := json.NewDecoder(resp.Body).Decode(&ir); err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid introspect response"})
+			return
+		}
+		if !ir.Active {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "inactive token"})
+			return
+		}
+		c.Set("user_id", ir.UserID)
+		c.Set("role", ir.Role)
+		c.Next()
+	}
+}
+
+// student handlers
+func (h *Handler) GetStudentMe(c *gin.Context) {
+	raw, _ := c.Get("user_id")
+	uid := raw.(int64)
+	st, err := h.studentSvc.GetProfile(c.Request.Context(), uid)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
+		return
+	}
+	c.JSON(http.StatusOK, st)
+}
+
+func (h *Handler) UpdateStudentMe(c *gin.Context) {
+	raw, _ := c.Get("user_id")
+	uid := raw.(int64)
+	var req entity.Student
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	req.UserID = uid
+	if err := h.studentSvc.UpdateProfile(c.Request.Context(), &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "updated"})
+}
+
+func (h *Handler) DeleteStudentMe(c *gin.Context) {
+	raw, _ := c.Get("user_id")
+	uid := raw.(int64)
+	if err := h.studentSvc.DeleteAccount(c.Request.Context(), uid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
+
+// employer handlers
+func (h *Handler) GetEmployerMe(c *gin.Context) {
+	raw, _ := c.Get("user_id")
+	uid := raw.(int64)
+	e, err := h.employerSvc.GetProfile(c.Request.Context(), uid)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
+		return
+	}
+	c.JSON(http.StatusOK, e)
+}
+
+func (h *Handler) UpdateEmployerMe(c *gin.Context) {
+	raw, _ := c.Get("user_id")
+	uid := raw.(int64)
+	var req entity.Employer
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	req.UserID = uid
+	if err := h.employerSvc.UpdateProfile(c.Request.Context(), &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "updated"})
+}
+
+func (h *Handler) DeleteEmployerMe(c *gin.Context) {
+	raw, _ := c.Get("user_id")
+	uid := raw.(int64)
+	if err := h.employerSvc.DeleteAccount(c.Request.Context(), uid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}
