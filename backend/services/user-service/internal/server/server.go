@@ -28,12 +28,12 @@ func (s *Server) Run() error {
 	studentRepo := postgres.NewStudentRepo(s.pool)
 	employerRepo := postgres.NewEmployerRepo(s.pool)
 
-	// services (depend on interfaces)
+	// services
 	userSvc := service.NewUserService(userRepo)
 	studentSvc := service.NewStudentService(studentRepo, userRepo)
 	employerSvc := service.NewEmployerService(employerRepo, userRepo)
 
-	// handler
+	// handlers
 	h := handler.NewHandler(userSvc, studentSvc, employerSvc, s.cfg.AuthIntrospect)
 	api := s.router.Group("/users")
 	h.RegisterRoutes(api)

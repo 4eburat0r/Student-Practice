@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"backend/services/user-service/internal/repository"
 	"backend/services/user-service/internal/domain/entity"
+	"backend/services/user-service/internal/repository"
 )
 
 type EmployerService struct {

@@ -1,22 +1,22 @@
 # user-service (MVP)
 
-Run:
+## Run locally (dev)
 cd backend/services/user-service
+docker-compose -f build/docker-compose.yml down -v
 docker-compose -f build/docker-compose.yml up --build
 
-Endpoints:
+- Postgres will initialize and run SQL in migrations/ on first volume creation.
+- Service available on http://localhost:8081
+
+## Endpoints
 - POST /users { email, password, role } -> create user
-- GET /users/:id -> get user (no password)
-- Protected (Authorization: Bearer <token>):
-  - GET /users/students/me
-  - PUT /users/students/me
-  - DELETE /users/students/me
-  - GET /users/employers/me
-  - PUT /users/employers/me
-  - DELETE /users/employers/me
+- GET /users/:id -> get user
+Protected (requires Authorization header):
+- GET /users/students/me
+- PUT /users/students/me
+- DELETE /users/students/me
+- GET /users/employers/me
+- PUT /users/employers/me
+- DELETE /users/employers/me
 
-Notes:
-- Auth introspection endpoint: AUTH_INTROSPECT_URL expects POST {"token":"..."} and returns {user_id, role, active}
-- DB auto-init uses SQL in migrations folder (first run only)
-
-Port: 8081
+For local dev you can use header: Authorization: Bearer devtoken (middleware dev shortcut).

@@ -8,15 +8,15 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, email, passwordHash, role string) (int64, error)
-	GetByEmail(ctx context.Context, email string) (*entity.User, string, error) // returns user and passwordHash
+	GetByEmail(ctx context.Context, email string) (*entity.User, string, error)
 	GetByID(ctx context.Context, id int64) (*entity.User, error)
 	Delete(ctx context.Context, id int64) error
 }
 
 type StudentRepository interface {
-	Create(ctx context.Context, s *entity.Student) (int64, error)
+	Create(ctx context.Context, st *entity.Student) (int64, error)
 	GetByUserID(ctx context.Context, userID int64) (*entity.Student, error)
-	UpdateByUserID(ctx context.Context, s *entity.Student) error
+	UpdateByUserID(ctx context.Context, st *entity.Student) error
 	DeleteByUserID(ctx context.Context, userID int64) error
 }
 

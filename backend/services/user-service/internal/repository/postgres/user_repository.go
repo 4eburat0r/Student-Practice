@@ -20,7 +20,7 @@ func NewUserRepo(db *pgxpool.Pool) *UserRepo {
 func (r *UserRepo) Create(ctx context.Context, email, passwordHash, role string) (int64, error) {
 	var id int64
 	err := r.db.QueryRow(ctx,
-		`INSERT INTO users(email,password_hash,role,email_verified,created_dt,updated_dt) VALUES($1,$2,$3,false,now(),now()) RETURNING id`,
+		`INSERT INTO users (email, password_hash, role, email_verified, created_at, updated_at) VALUES ($1,$2,$3,true,now(),now()) RETURNING id`,
 		email, passwordHash, role).Scan(&id)
 	return id, err
 }
@@ -28,7 +28,7 @@ func (r *UserRepo) Create(ctx context.Context, email, passwordHash, role string)
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*entity.User, string, error) {
 	u := &entity.User{}
 	var ph string
-	row := r.db.QueryRow(ctx, `SELECT id,email,role,email_verified,created_dt,updated_dt,password_hash FROM users WHERE email=$1`, email)
+	row := r.db.QueryRow(ctx, `SELECT id, email, role, email_verified, created_at, updated_at, password_hash FROM users WHERE email=$1`, email)
 	if err := row.Scan(&u.ID, &u.Email, &u.Role, &u.EmailVerified, &u.CreatedAt, &u.UpdatedAt, &ph); err != nil {
 		return nil, "", err
 	}
@@ -37,7 +37,7 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*entity.User, 
 
 func (r *UserRepo) GetByID(ctx context.Context, id int64) (*entity.User, error) {
 	u := &entity.User{}
-	row := r.db.QueryRow(ctx, `SELECT id,email,role,email_verified,created_dt,updated_dt FROM users WHERE id=$1`, id)
+	row := r.db.QueryRow(ctx, `SELECT id, email, role, email_verified, created_at, updated_at FROM users WHERE id=$1`, id)
 	if err := row.Scan(&u.ID, &u.Email, &u.Role, &u.EmailVerified, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		return nil, err
 	}

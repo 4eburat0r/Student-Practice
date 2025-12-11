@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"backend/services/user-service/internal/repository"
 	"backend/services/user-service/internal/domain/entity"
+	"backend/services/user-service/internal/repository"
 )
 
 type UserService struct {
@@ -30,8 +30,7 @@ func (s *UserService) GetByID(ctx context.Context, id int64) (*entity.User, erro
 }
 
 func (s *UserService) GetByEmail(ctx context.Context, email string) (*entity.User, string, error) {
-	u, ph, err := s.repo.GetByEmail(ctx, email)
-	return u, ph, err
+	return s.repo.GetByEmail(ctx, email)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id int64) error {
