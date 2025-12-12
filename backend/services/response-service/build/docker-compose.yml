@@ -1,0 +1,32 @@
+services:
+  response-postgres:
+    image: postgres:15-alpine
+    container_name: response-postgres
+    environment:
+      POSTGRES_DB: response_db
+      POSTGRES_USER: response_user
+      POSTGRES_PASSWORD: response_pass
+    ports:
+      - "5435:5432"
+    volumes:
+      - response_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  response-service:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile
+    container_name: response-service
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgres://response_user:response_pass@response-postgres:5432/response_db?sslmode=disable
+      SERVER_PORT: "8084"
+    depends_on:
+      - response-postgres
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+
+volumes:
+  response_pg_data:
