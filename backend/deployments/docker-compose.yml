@@ -1,36 +1,238 @@
 services:
-  db:
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: student_practice
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+      - ../services/auth-service/api/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  auth-service:
+    build:
+      context: ../services/auth-service
+      dockerfile: Dockerfile
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      ENV: production
+      DB_HOST: auth-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: student_practice
+      DB_SSLMODE: disable
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      JWT_ACCESS_TTL_MINUTES: 15
+      JWT_REFRESH_TTL_HOURS: 168
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+
+  user-db:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: userdb
     volumes:
-      - db-data:/var/lib/postgresql/data
-      - ../migrations:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5433:5432"
+      - user-db-data:/var/lib/postgresql/data
+      - ../services/user-service/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 3s
+      interval: 5s
       timeout: 5s
       retries: 5
+    ports:
+      - "5433:5432"
+    networks:
+      - backend
 
   user-service:
     build:
-      context: ..
+      context: ../services/user-service
       dockerfile: build/Dockerfile
     env_file:
-      - ../.env.example
+      - ../services/user-service/.env.example
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/userdb?sslmode=disable
-      - AUTH_INTROSPECT_URL=http://auth-service:8080/introspect
-      - PORT=8081
+      DATABASE_URL: postgres://postgres:postgres@user-db:5432/userdb?sslmode=disable
+      AUTH_INTROSPECT_URL: http://auth-service:8080/introspect
+      PORT: 8081
     depends_on:
-      db:
+      user-db:
         condition: service_healthy
+      auth-service:
+        condition: service_started
     ports:
       - "8081:8081"
+    networks:
+      - backend
+
+  resume-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: internship_db
+    volumes:
+      - resume-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  resume-redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - resume-redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+  resume-service:
+    build:
+      context: ../services/resume-service
+      dockerfile: build/Dockerfile
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8082
+      SERVER_ENV: production
+      DB_HOST: resume-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: internship_db
+      DB_SSLMODE: disable
+      REDIS_HOST: resume-redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      JWT_SECRET: your-secret-key
+    depends_on:
+      resume-db:
+        condition: service_healthy
+      resume-redis:
+        condition: service_started
+    ports:
+      - "8082:8082"
+    networks:
+      - backend
+
+  vacancy-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: vacancy_user
+      POSTGRES_PASSWORD: vacancy_pass
+      POSTGRES_DB: vacancy_db
+    volumes:
+      - vacancy-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vacancy_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  vacancy-service:
+    build:
+      context: ../services/vacancy-service
+      dockerfile: build/Dockerfile
+    environment:
+      SERVER_PORT: 8083
+      DATABASE_URL: postgres://vacancy_user:vacancy_pass@vacancy-db:5432/vacancy_db?sslmode=disable
+    depends_on:
+      vacancy-db:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    networks:
+      - backend
+
+  response-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: response_user
+      POSTGRES_PASSWORD: response_pass
+      POSTGRES_DB: response_db
+    volumes:
+      - response-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U response_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  response-service:
+    build:
+      context: ../services/response-service
+      dockerfile: build/Dockerfile
+    environment:
+      SERVER_PORT: 8084
+      DATABASE_URL: postgres://response_user:response_pass@response-db:5432/response_db?sslmode=disable
+    depends_on:
+      response-db:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    networks:
+      - backend
+
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+      dockerfile: build/Dockerfile
+    environment:
+      SERVER_PORT: 8000
+      ENV: production
+      AUTH_SERVICE_URL: http://auth-service:8080
+      USER_SERVICE_URL: http://user-service:8081
+      RESUME_SERVICE_URL: http://resume-service:8082
+      VACANCY_SERVICE_URL: http://vacancy-service:8083
+      RESPONSE_SERVICE_URL: http://response-service:8084
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      resume-service:
+        condition: service_started
+      vacancy-service:
+        condition: service_started
+      response-service:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
 
 volumes:
-  db-data:
+  auth-db-data:
+  user-db-data:
+  resume-db-data:
+  resume-redis-data:
+  vacancy-db-data:
+  response-db-data:
+
+networks:
+  backend:
+    driver: bridge
