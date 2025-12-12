@@ -369,19 +369,10 @@ services/user-service/
 │   │   └── error.go
 │   └── storage/                    # Для загрузки фото профилей
 │       └── file_storage.go
-│
-├── migrations/
-│   ├── 001_create_students_table.up.sql
-│   ├── 001_create_students_table.down.sql
-│   ├── 002_create_employers_table.up.sql
-│   └── 002_create_employers_table.down.sql
-│
+|
 ├── api/
 │   └── openapi/
 │       └── user.yaml
-│
-├── configs/
-│   └── .env.example
 │
 ├── scripts/
 │   ├── migrate-up.sh
