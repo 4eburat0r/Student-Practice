@@ -13,6 +13,7 @@ import (
 func (h *Handler) CreateResponse(c *gin.Context) {
 	token := c.GetString("token")
 	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	if role != "student" {
 		response.Error(c, http.StatusForbidden, "Only students can create responses")
@@ -28,9 +29,11 @@ func (h *Handler) CreateResponse(c *gin.Context) {
 	respBody, statusCode, err := h.deps.ResponseClient.ProxyRequest(
 		c.Request.Context(),
 		"POST",
-		"/api/responses",
+		"/response",
 		body,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to create response")
@@ -42,13 +45,17 @@ func (h *Handler) CreateResponse(c *gin.Context) {
 
 func (h *Handler) GetMyResponses(c *gin.Context) {
 	token := c.GetString("token")
+	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	respBody, statusCode, err := h.deps.ResponseClient.ProxyRequest(
 		c.Request.Context(),
 		"GET",
-		"/api/responses/me",
+		"/response/me",
 		nil,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to get responses")
@@ -61,8 +68,10 @@ func (h *Handler) GetMyResponses(c *gin.Context) {
 func (h *Handler) GetResponseByID(c *gin.Context) {
 	id := c.Param("id")
 	token := c.GetString("token")
+	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
-	path := fmt.Sprintf("/api/responses/%s", id)
+	path := fmt.Sprintf("/response/%s", id)
 
 	respBody, statusCode, err := h.deps.ResponseClient.ProxyRequest(
 		c.Request.Context(),
@@ -70,6 +79,8 @@ func (h *Handler) GetResponseByID(c *gin.Context) {
 		path,
 		nil,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to get response")
@@ -80,43 +91,16 @@ func (h *Handler) GetResponseByID(c *gin.Context) {
 }
 
 func (h *Handler) UpdateResponseStatus(c *gin.Context) {
-	id := c.Param("id")
-	token := c.GetString("token")
-	role := c.GetString("role")
-
-	if role != "employer" {
-		response.Error(c, http.StatusForbidden, "Only employers can update response status")
-		return
-	}
-
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	path := fmt.Sprintf("/api/responses/%s/status", id)
-
-	respBody, statusCode, err := h.deps.ResponseClient.ProxyRequest(
-		c.Request.Context(),
-		"PUT",
-		path,
-		body,
-		token,
-	)
-	if err != nil {
-		response.Error(c, statusCode, "Failed to update response status")
-		return
-	}
-
-	c.Data(statusCode, "application/json", respBody)
+	response.Error(c, http.StatusNotImplemented, "Response status update is not supported")
 }
 
 func (h *Handler) DeleteResponse(c *gin.Context) {
 	id := c.Param("id")
 	token := c.GetString("token")
+	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
-	path := fmt.Sprintf("/api/responses/%s", id)
+	path := fmt.Sprintf("/response/%s", id)
 
 	respBody, statusCode, err := h.deps.ResponseClient.ProxyRequest(
 		c.Request.Context(),
@@ -124,6 +108,8 @@ func (h *Handler) DeleteResponse(c *gin.Context) {
 		path,
 		nil,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to delete response")

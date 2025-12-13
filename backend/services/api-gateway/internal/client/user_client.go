@@ -31,27 +31,27 @@ func NewUserClient(baseURL string, cb *resilience.CircuitBreaker) *UserClient {
 }
 
 func (c *UserClient) GetStudentProfile(ctx context.Context, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "GET", "/api/users/students/me", nil, token)
+	return c.proxyRequest(ctx, "GET", "/users/students/me", nil, token)
 }
 
 func (c *UserClient) UpdateStudentProfile(ctx context.Context, body []byte, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "PUT", "/api/users/students/me", body, token)
+	return c.proxyRequest(ctx, "PUT", "/users/students/me", body, token)
 }
 
 func (c *UserClient) DeleteStudentProfile(ctx context.Context, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "DELETE", "/api/users/students/me", nil, token)
+	return c.proxyRequest(ctx, "DELETE", "/users/students/me", nil, token)
 }
 
 func (c *UserClient) GetEmployerProfile(ctx context.Context, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "GET", "/api/users/employers/me", nil, token)
+	return c.proxyRequest(ctx, "GET", "/users/employers/me", nil, token)
 }
 
 func (c *UserClient) UpdateEmployerProfile(ctx context.Context, body []byte, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "PUT", "/api/users/employers/me", body, token)
+	return c.proxyRequest(ctx, "PUT", "/users/employers/me", body, token)
 }
 
 func (c *UserClient) DeleteEmployerProfile(ctx context.Context, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "DELETE", "/api/users/employers/me", nil, token)
+	return c.proxyRequest(ctx, "DELETE", "/users/employers/me", nil, token)
 }
 
 func (c *UserClient) ProxyRequest(ctx context.Context, method, path string, body []byte, token string) ([]byte, int, error) {

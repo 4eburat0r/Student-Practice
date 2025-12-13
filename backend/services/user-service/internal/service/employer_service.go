@@ -1,0 +1,41 @@
+package service
+
+import (
+	"context"
+	"strings"
+
+	"backend/services/user-service/internal/domain/entity"
+	"backend/services/user-service/internal/repository"
+)
+
+type EmployerService struct {
+	employerRepo repository.EmployerRepository
+	userRepo     repository.UserRepository
+}
+
+func NewEmployerService(er repository.EmployerRepository, ur repository.UserRepository) *EmployerService {
+	return &EmployerService{employerRepo: er, userRepo: ur}
+}
+
+func (s *EmployerService) GetProfile(ctx context.Context, userID int64) (*entity.Employer, error) {
+	return s.employerRepo.GetByUserID(ctx, userID)
+}
+
+func (s *EmployerService) UpdateProfile(ctx context.Context, e *entity.Employer) error {
+	if err := s.employerRepo.UpdateByUserID(ctx, e); err != nil {
+		// Если профиля ещё нет, создаём запись
+		if strings.Contains(err.Error(), "not found") {
+			_, createErr := s.employerRepo.Create(ctx, e)
+			return createErr
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *EmployerService) DeleteAccount(ctx context.Context, userID int64) error {
+	if err := s.employerRepo.DeleteByUserID(ctx, userID); err != nil {
+		return err
+	}
+	return s.userRepo.Delete(ctx, userID)
+}

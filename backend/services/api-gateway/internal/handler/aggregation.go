@@ -23,9 +23,9 @@ func (h *Handler) GetFullProfile(c *gin.Context) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		path := "/api/users/students/me"
+		path := "/users/students/me"
 		if role == "employer" {
-			path = "/api/users/employers/me"
+			path = "/users/employers/me"
 		}
 		profileData, _, profileErr = h.deps.UserClient.ProxyRequest(
 			c.Request.Context(),
@@ -89,13 +89,14 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 
 	if role == "student" {
 		wg.Add(3)
+		userID := c.GetInt("user_id")
 
 		go func() {
 			defer wg.Done()
 			profileData, _, profileErr = h.deps.UserClient.ProxyRequest(
 				c.Request.Context(),
 				"GET",
-				"/api/users/students/me",
+				"/users/students/me",
 				nil,
 				token,
 			)
@@ -117,9 +118,11 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 			responseData, _, responseErr = h.deps.ResponseClient.ProxyRequest(
 				c.Request.Context(),
 				"GET",
-				"/api/responses/me",
+				"/response/me",
 				nil,
 				token,
+				userID,
+				role,
 			)
 		}()
 
@@ -151,14 +154,15 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 		response.Success(c, http.StatusOK, result)
 
 	} else if role == "employer" {
-		wg.Add(3)
+		wg.Add(2)
+		userID := c.GetInt("user_id")
 
 		go func() {
 			defer wg.Done()
 			profileData, _, profileErr = h.deps.UserClient.ProxyRequest(
 				c.Request.Context(),
 				"GET",
-				"/api/users/employers/me",
+				"/users/employers/me",
 				nil,
 				token,
 			)
@@ -169,20 +173,11 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 			vacancyData, _, vacancyErr = h.deps.VacancyClient.ProxyRequest(
 				c.Request.Context(),
 				"GET",
-				"/api/vacancies/me",
+				"/vacancies/me",
 				nil,
 				token,
-			)
-		}()
-
-		go func() {
-			defer wg.Done()
-			responseData, _, responseErr = h.deps.ResponseClient.ProxyRequest(
-				c.Request.Context(),
-				"GET",
-				"/api/responses/candidates",
-				nil,
-				token,
+				userID,
+				role,
 			)
 		}()
 
@@ -201,13 +196,6 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 			var vacancies map[string]interface{}
 			if err := json.Unmarshal(vacancyData, &vacancies); err == nil {
 				result["vacancies"] = vacancies
-			}
-		}
-
-		if responseErr == nil && len(responseData) > 0 {
-			var candidates map[string]interface{}
-			if err := json.Unmarshal(responseData, &candidates); err == nil {
-				result["candidates"] = candidates
 			}
 		}
 

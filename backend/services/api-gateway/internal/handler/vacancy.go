@@ -13,6 +13,7 @@ import (
 func (h *Handler) CreateVacancy(c *gin.Context) {
 	token := c.GetString("token")
 	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	if role != "employer" {
 		response.Error(c, http.StatusForbidden, "Only employers can create vacancies")
@@ -28,9 +29,11 @@ func (h *Handler) CreateVacancy(c *gin.Context) {
 	respBody, statusCode, err := h.deps.VacancyClient.ProxyRequest(
 		c.Request.Context(),
 		"POST",
-		"/api/vacancies",
+		"/vacancies",
 		body,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to create vacancy")
@@ -43,6 +46,7 @@ func (h *Handler) CreateVacancy(c *gin.Context) {
 func (h *Handler) GetMyVacancies(c *gin.Context) {
 	token := c.GetString("token")
 	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	if role != "employer" {
 		response.Error(c, http.StatusForbidden, "Only employers can access this endpoint")
@@ -52,9 +56,11 @@ func (h *Handler) GetMyVacancies(c *gin.Context) {
 	respBody, statusCode, err := h.deps.VacancyClient.ProxyRequest(
 		c.Request.Context(),
 		"GET",
-		"/api/vacancies/me",
+		"/vacancies/me",
 		nil,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to get vacancies")
@@ -68,7 +74,7 @@ func (h *Handler) GetVacanciesFeed(c *gin.Context) {
 	token := c.GetString("token")
 
 	queryString := c.Request.URL.RawQuery
-	path := "/api/vacancies/feed"
+	path := "/vacancies/feed"
 	if queryString != "" {
 		path += "?" + queryString
 	}
@@ -79,6 +85,8 @@ func (h *Handler) GetVacanciesFeed(c *gin.Context) {
 		path,
 		nil,
 		token,
+		0,
+		"",
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to get vacancies feed")
@@ -92,7 +100,7 @@ func (h *Handler) GetVacancyByID(c *gin.Context) {
 	id := c.Param("id")
 	token := c.GetString("token")
 
-	path := fmt.Sprintf("/api/vacancies/%s", id)
+	path := fmt.Sprintf("/vacancies/%s", id)
 
 	respBody, statusCode, err := h.deps.VacancyClient.ProxyRequest(
 		c.Request.Context(),
@@ -100,6 +108,8 @@ func (h *Handler) GetVacancyByID(c *gin.Context) {
 		path,
 		nil,
 		token,
+		0,
+		"",
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to get vacancy")
@@ -113,6 +123,7 @@ func (h *Handler) UpdateVacancy(c *gin.Context) {
 	id := c.Param("id")
 	token := c.GetString("token")
 	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	if role != "employer" {
 		response.Error(c, http.StatusForbidden, "Only employers can update vacancies")
@@ -125,7 +136,7 @@ func (h *Handler) UpdateVacancy(c *gin.Context) {
 		return
 	}
 
-	path := fmt.Sprintf("/api/vacancies/%s", id)
+	path := fmt.Sprintf("/vacancies/%s", id)
 
 	respBody, statusCode, err := h.deps.VacancyClient.ProxyRequest(
 		c.Request.Context(),
@@ -133,6 +144,8 @@ func (h *Handler) UpdateVacancy(c *gin.Context) {
 		path,
 		body,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to update vacancy")
@@ -146,13 +159,14 @@ func (h *Handler) DeleteVacancy(c *gin.Context) {
 	id := c.Param("id")
 	token := c.GetString("token")
 	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	if role != "employer" {
 		response.Error(c, http.StatusForbidden, "Only employers can delete vacancies")
 		return
 	}
 
-	path := fmt.Sprintf("/api/vacancies/%s", id)
+	path := fmt.Sprintf("/vacancies/%s", id)
 
 	respBody, statusCode, err := h.deps.VacancyClient.ProxyRequest(
 		c.Request.Context(),
@@ -160,6 +174,8 @@ func (h *Handler) DeleteVacancy(c *gin.Context) {
 		path,
 		nil,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to delete vacancy")
@@ -173,13 +189,14 @@ func (h *Handler) PublishVacancy(c *gin.Context) {
 	id := c.Param("id")
 	token := c.GetString("token")
 	role := c.GetString("role")
+	userID := c.GetInt("user_id")
 
 	if role != "employer" {
 		response.Error(c, http.StatusForbidden, "Only employers can publish vacancies")
 		return
 	}
 
-	path := fmt.Sprintf("/api/vacancies/%s/publish", id)
+	path := fmt.Sprintf("/vacancies/%s/publish", id)
 
 	respBody, statusCode, err := h.deps.VacancyClient.ProxyRequest(
 		c.Request.Context(),
@@ -187,6 +204,8 @@ func (h *Handler) PublishVacancy(c *gin.Context) {
 		path,
 		nil,
 		token,
+		userID,
+		role,
 	)
 	if err != nil {
 		response.Error(c, statusCode, "Failed to publish vacancy")

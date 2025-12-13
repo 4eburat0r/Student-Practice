@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"api-gateway/internal/resilience"
@@ -30,47 +31,29 @@ func NewResponseClient(baseURL string, cb *resilience.CircuitBreaker) *ResponseC
 	}
 }
 
-func (c *ResponseClient) CreateResponse(ctx context.Context, body []byte, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "POST", "/api/responses", body, token)
+func (c *ResponseClient) CreateResponse(ctx context.Context, body []byte, token string, userID int, role string) ([]byte, int, error) {
+	return c.proxyRequest(ctx, "POST", "/response", body, token, userID, role)
 }
 
-func (c *ResponseClient) GetMyResponses(ctx context.Context, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "GET", "/api/responses/me", nil, token)
+func (c *ResponseClient) GetMyResponses(ctx context.Context, token string, userID int, role string) ([]byte, int, error) {
+	return c.proxyRequest(ctx, "GET", "/response/me", nil, token, userID, role)
 }
 
-func (c *ResponseClient) GetResponseByID(ctx context.Context, id string, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/responses/%s", id)
-	return c.proxyRequest(ctx, "GET", path, nil, token)
+func (c *ResponseClient) GetResponseByID(ctx context.Context, id string, token string, userID int, role string) ([]byte, int, error) {
+	path := fmt.Sprintf("/response/%s", id)
+	return c.proxyRequest(ctx, "GET", path, nil, token, userID, role)
 }
 
-func (c *ResponseClient) UpdateResponseStatus(ctx context.Context, id string, body []byte, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/responses/%s/status", id)
-	return c.proxyRequest(ctx, "PUT", path, body, token)
+func (c *ResponseClient) DeleteResponse(ctx context.Context, id string, token string, userID int, role string) ([]byte, int, error) {
+	path := fmt.Sprintf("/response/%s", id)
+	return c.proxyRequest(ctx, "DELETE", path, nil, token, userID, role)
 }
 
-func (c *ResponseClient) DeleteResponse(ctx context.Context, id string, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/responses/%s", id)
-	return c.proxyRequest(ctx, "DELETE", path, nil, token)
+func (c *ResponseClient) ProxyRequest(ctx context.Context, method, path string, body []byte, token string, userID int, role string) ([]byte, int, error) {
+	return c.proxyRequest(ctx, method, path, body, token, userID, role)
 }
 
-func (c *ResponseClient) GetCandidates(ctx context.Context, queryString string, token string) ([]byte, int, error) {
-	path := "/api/responses/candidates"
-	if queryString != "" {
-		path += "?" + queryString
-	}
-	return c.proxyRequest(ctx, "GET", path, nil, token)
-}
-
-func (c *ResponseClient) GetResponsesByVacancy(ctx context.Context, vacancyID string, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/responses/vacancy/%s", vacancyID)
-	return c.proxyRequest(ctx, "GET", path, nil, token)
-}
-
-func (c *ResponseClient) ProxyRequest(ctx context.Context, method, path string, body []byte, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, method, path, body, token)
-}
-
-func (c *ResponseClient) proxyRequest(ctx context.Context, method, path string, body []byte, token string) ([]byte, int, error) {
+func (c *ResponseClient) proxyRequest(ctx context.Context, method, path string, body []byte, token string, userID int, role string) ([]byte, int, error) {
 	url := c.baseURL + path
 
 	var responseBody []byte
@@ -94,6 +77,12 @@ func (c *ResponseClient) proxyRequest(ctx context.Context, method, path string, 
 			req.Header.Set("Content-Type", "application/json")
 			if token != "" {
 				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			if userID > 0 {
+				req.Header.Set("X-User-Id", strconv.Itoa(userID))
+			}
+			if role != "" {
+				req.Header.Set("X-User-Role", role)
 			}
 
 			resp, err := c.httpClient.Do(req)

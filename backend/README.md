@@ -1380,4 +1380,3 @@ docker-compose up --build
 - **Аутентификация:** JWT
 - **Документация:** Swagger/OpenAPI
 - **Контейнеризация:** Docker, Docker Compose
->>>>>>> 35da1feff9e0cb7f6cd58e44cccdb47f150ee12d

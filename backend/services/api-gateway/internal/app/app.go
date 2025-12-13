@@ -12,7 +12,6 @@ import (
 	"api-gateway/internal/config"
 	"api-gateway/internal/deps"
 	"api-gateway/internal/handler"
-	"api-gateway/internal/middleware"
 	"api-gateway/internal/server"
 	"api-gateway/pkg/logger"
 
@@ -39,12 +38,7 @@ func Run(cfg *config.Config) error {
 
 	h := handler.NewHandler(dependencies)
 
-	router := gin.New()
-	router.Use(middleware.Logger())
-	router.Use(middleware.CORS())
-
-	h.InitRoutes()
-
+	router := h.InitRoutes()
 	srv := server.NewServer(cfg.ServerPort, router)
 
 	go func() {

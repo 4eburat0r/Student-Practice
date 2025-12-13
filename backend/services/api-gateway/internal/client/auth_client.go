@@ -11,7 +11,6 @@ import (
 
 	"api-gateway/internal/resilience"
 	"api-gateway/pkg/logger"
-
 	"go.uber.org/zap"
 )
 
@@ -32,11 +31,33 @@ func NewAuthClient(baseURL string, cb *resilience.CircuitBreaker) *AuthClient {
 }
 
 func (c *AuthClient) Register(ctx context.Context, body []byte) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "POST", "/api/auth/register", body, "")
+	var reqData map[string]interface{}
+	if err := json.Unmarshal(body, &reqData); err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid JSON body: %w", err)
+	}
+
+	role, ok := reqData["role"].(string)
+	if !ok || (role != "student" && role != "employer") {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid or missing role field")
+	}
+
+	path := fmt.Sprintf("/api/auth/%s/register", role)
+	return c.proxyRequest(ctx, "POST", path, body, "")
 }
 
 func (c *AuthClient) Login(ctx context.Context, body []byte) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "POST", "/api/auth/login", body, "")
+	var reqData map[string]interface{}
+	if err := json.Unmarshal(body, &reqData); err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid JSON body: %w", err)
+	}
+
+	role, ok := reqData["role"].(string)
+	if !ok || (role != "student" && role != "employer") {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid or missing role field")
+	}
+
+	path := fmt.Sprintf("/api/auth/%s/login", role)
+	return c.proxyRequest(ctx, "POST", path, body, "")
 }
 
 func (c *AuthClient) RefreshToken(ctx context.Context, body []byte) ([]byte, int, error) {
@@ -45,7 +66,6 @@ func (c *AuthClient) RefreshToken(ctx context.Context, body []byte) ([]byte, int
 
 func (c *AuthClient) ValidateToken(ctx context.Context, token string) (map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/api/auth/validate", c.baseURL)
-
 	var result map[string]interface{}
 
 	_, err := c.cb.Execute(func() (interface{}, error) {
@@ -56,11 +76,11 @@ func (c *AuthClient) ValidateToken(ctx context.Context, token string) (map[strin
 			}
 
 			req.Header.Set("Authorization", "Bearer "+token)
-
 			resp, err := c.httpClient.Do(req)
 			if err != nil {
 				return fmt.Errorf("request failed: %w", err)
 			}
+
 			defer resp.Body.Close()
 
 			if resp.StatusCode != http.StatusOK {
@@ -85,7 +105,6 @@ func (c *AuthClient) ProxyRequest(ctx context.Context, method, path string, body
 
 func (c *AuthClient) proxyRequest(ctx context.Context, method, path string, body []byte, token string) ([]byte, int, error) {
 	url := c.baseURL + path
-
 	var responseBody []byte
 	var statusCode int
 
@@ -113,8 +132,8 @@ func (c *AuthClient) proxyRequest(ctx context.Context, method, path string, body
 			if err != nil {
 				return fmt.Errorf("request failed: %w", err)
 			}
-			defer resp.Body.Close()
 
+			defer resp.Body.Close()
 			statusCode = resp.StatusCode
 			responseBody, err = io.ReadAll(resp.Body)
 			if err != nil {

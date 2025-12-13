@@ -22,6 +22,30 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			auth.POST("/register", h.Register)
 			auth.POST("/login", h.Login)
 			auth.POST("/refresh", h.RefreshToken)
+
+			student := auth.Group("/student")
+			{
+				student.POST("/register", h.RegisterStudent)
+				student.POST("/login", h.LoginStudent)
+			}
+
+			employer := auth.Group("/employer")
+			{
+				employer.POST("/register", h.RegisterEmployer)
+				employer.POST("/login", h.LoginEmployer)
+			}
+		}
+
+		resumes := api.Group("/resumes")
+		{
+			resumes.GET("/feed", h.GetResumesFeed)
+			resumes.GET("/:id", h.GetResumeByID)
+		}
+
+		vacancies := api.Group("/vacancies")
+		{
+			vacancies.GET("/feed", h.GetVacanciesFeed)
+			vacancies.GET("/:id", h.GetVacancyByID)
 		}
 
 		protected := api.Group("")
@@ -48,8 +72,6 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			{
 				resumes.POST("", h.CreateResume)
 				resumes.GET("/me", h.GetMyResumes)
-				resumes.GET("/feed", h.GetResumesFeed)
-				resumes.GET("/:id", h.GetResumeByID)
 				resumes.PUT("/:id", h.UpdateResume)
 				resumes.DELETE("/:id", h.DeleteResume)
 				resumes.POST("/:id/publish", h.PublishResume)
@@ -59,8 +81,6 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			{
 				vacancies.POST("", h.CreateVacancy)
 				vacancies.GET("/me", h.GetMyVacancies)
-				vacancies.GET("/feed", h.GetVacanciesFeed)
-				vacancies.GET("/:id", h.GetVacancyByID)
 				vacancies.PUT("/:id", h.UpdateVacancy)
 				vacancies.DELETE("/:id", h.DeleteVacancy)
 				vacancies.POST("/:id/publish", h.PublishVacancy)

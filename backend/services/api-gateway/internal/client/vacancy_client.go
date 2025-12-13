@@ -30,55 +30,55 @@ func NewVacancyClient(baseURL string, cb *resilience.CircuitBreaker) *VacancyCli
 	}
 }
 
-func (c *VacancyClient) CreateVacancy(ctx context.Context, body []byte, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "POST", "/api/vacancies", body, token)
+func (c *VacancyClient) CreateVacancy(ctx context.Context, body []byte, token string, userID int, role string) ([]byte, int, error) {
+	return c.proxyRequest(ctx, "POST", "/vacancies", body, token, userID, role)
 }
 
-func (c *VacancyClient) GetMyVacancies(ctx context.Context, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, "GET", "/api/vacancies/me", nil, token)
+func (c *VacancyClient) GetMyVacancies(ctx context.Context, token string, userID int, role string) ([]byte, int, error) {
+	return c.proxyRequest(ctx, "GET", "/vacancies/me", nil, token, userID, role)
 }
 
 func (c *VacancyClient) GetVacanciesFeed(ctx context.Context, queryString string, token string) ([]byte, int, error) {
-	path := "/api/vacancies/feed"
+	path := "/vacancies/feed"
 	if queryString != "" {
 		path += "?" + queryString
 	}
-	return c.proxyRequest(ctx, "GET", path, nil, token)
+	return c.proxyRequest(ctx, "GET", path, nil, token, 0, "")
 }
 
 func (c *VacancyClient) GetVacancyByID(ctx context.Context, id string, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/vacancies/%s", id)
-	return c.proxyRequest(ctx, "GET", path, nil, token)
+	path := fmt.Sprintf("/vacancies/%s", id)
+	return c.proxyRequest(ctx, "GET", path, nil, token, 0, "")
 }
 
-func (c *VacancyClient) UpdateVacancy(ctx context.Context, id string, body []byte, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/vacancies/%s", id)
-	return c.proxyRequest(ctx, "PUT", path, body, token)
+func (c *VacancyClient) UpdateVacancy(ctx context.Context, id string, body []byte, token string, userID int, role string) ([]byte, int, error) {
+	path := fmt.Sprintf("/vacancies/%s", id)
+	return c.proxyRequest(ctx, "PUT", path, body, token, userID, role)
 }
 
-func (c *VacancyClient) DeleteVacancy(ctx context.Context, id string, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/vacancies/%s", id)
-	return c.proxyRequest(ctx, "DELETE", path, nil, token)
+func (c *VacancyClient) DeleteVacancy(ctx context.Context, id string, token string, userID int, role string) ([]byte, int, error) {
+	path := fmt.Sprintf("/vacancies/%s", id)
+	return c.proxyRequest(ctx, "DELETE", path, nil, token, userID, role)
 }
 
-func (c *VacancyClient) PublishVacancy(ctx context.Context, id string, token string) ([]byte, int, error) {
-	path := fmt.Sprintf("/api/vacancies/%s/publish", id)
-	return c.proxyRequest(ctx, "POST", path, nil, token)
+func (c *VacancyClient) PublishVacancy(ctx context.Context, id string, token string, userID int, role string) ([]byte, int, error) {
+	path := fmt.Sprintf("/vacancies/%s/publish", id)
+	return c.proxyRequest(ctx, "POST", path, nil, token, userID, role)
 }
 
 func (c *VacancyClient) SearchVacancies(ctx context.Context, queryString string, token string) ([]byte, int, error) {
-	path := "/api/vacancies/search"
+	path := "/vacancies/search"
 	if queryString != "" {
 		path += "?" + queryString
 	}
-	return c.proxyRequest(ctx, "GET", path, nil, token)
+	return c.proxyRequest(ctx, "GET", path, nil, token, 0, "")
 }
 
-func (c *VacancyClient) ProxyRequest(ctx context.Context, method, path string, body []byte, token string) ([]byte, int, error) {
-	return c.proxyRequest(ctx, method, path, body, token)
+func (c *VacancyClient) ProxyRequest(ctx context.Context, method, path string, body []byte, token string, userID int, role string) ([]byte, int, error) {
+	return c.proxyRequest(ctx, method, path, body, token, userID, role)
 }
 
-func (c *VacancyClient) proxyRequest(ctx context.Context, method, path string, body []byte, token string) ([]byte, int, error) {
+func (c *VacancyClient) proxyRequest(ctx context.Context, method, path string, body []byte, token string, userID int, role string) ([]byte, int, error) {
 	url := c.baseURL + path
 
 	var responseBody []byte
@@ -102,6 +102,12 @@ func (c *VacancyClient) proxyRequest(ctx context.Context, method, path string, b
 			req.Header.Set("Content-Type", "application/json")
 			if token != "" {
 				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			if userID > 0 {
+				req.Header.Set("X-User-Id", fmt.Sprintf("%d", userID))
+			}
+			if role != "" {
+				req.Header.Set("X-User-Role", role)
 			}
 
 			resp, err := c.httpClient.Do(req)
